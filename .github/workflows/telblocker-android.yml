@@ -1,0 +1,46 @@
+---
+# TelBlocker fork: builds the Android app on GitHub-hosted runners.
+# Upstream's android-app.yml needs Mullvad's self-hosted "android-build" runners, which a fork
+# doesn't have. This reuses upstream's build container and builds arm64 only, which covers
+# current phones and keeps the job within the runner's time and disk limits.
+name: TelBlocker - Build Android app
+on:
+  push:
+    branches: [telblocker, 'telblocker-**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build app (arm64, OSS prod debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build APK in upstream's build container
+        run: |
+          image=$(cat building/android-container-image.txt)
+          docker run --rm \
+            -v "$PWD:/build" -w /build \
+            -e CARGO_TARGET_DIR=/build/target \
+            "$image" \
+            bash -c "android/gradlew -p android --console plain --stacktrace --no-daemon \
+              -Pmullvad.app.build.cargo.targets=arm64 \
+              -Pmullvad.app.build.cargo.cleanBuild=false \
+              :app:assembleOssProdDebug"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: telblocker-x-mullvad-apk
+          path: android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
