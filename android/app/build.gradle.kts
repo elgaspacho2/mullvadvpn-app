@@ -52,7 +52,8 @@ android {
     ndkVersion = libs.versions.ndk.get()
 
     defaultConfig {
-        applicationId = "net.mullvad.mullvadvpn"
+        // TelBlocker fork: own application ID so it installs next to the official app.
+        applicationId = "net.mullvad.mullvadvpn.telblocker"
         minSdk = libs.versions.min.sdk.get().toInt()
         targetSdk = libs.versions.target.sdk.get().toInt()
         versionCode = appVersion.code
