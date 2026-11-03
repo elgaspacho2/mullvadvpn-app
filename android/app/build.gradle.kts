@@ -490,6 +490,7 @@ dependencies {
     implementation(projects.lib.feature.settings.impl)
     implementation(projects.lib.feature.settings.api)
     implementation(projects.lib.feature.splittunneling.impl)
+    implementation(projects.lib.feature.telblocker.impl)
     implementation(projects.lib.feature.vpnsettings.impl)
     implementation(projects.lib.feature.vpnsettings.api)
     implementation(projects.lib.map)

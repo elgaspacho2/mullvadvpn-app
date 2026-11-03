@@ -68,6 +68,7 @@ import net.mullvad.mullvadvpn.feature.redeemvoucher.impl.navigation.redeemVouche
 import net.mullvad.mullvadvpn.feature.serveripoverride.impl.navigation.serverIpOverrideEntry
 import net.mullvad.mullvadvpn.feature.settings.impl.navigation.settingsEntry
 import net.mullvad.mullvadvpn.feature.splittunneling.impl.navigation.splitTunnelingEntry
+import net.mullvad.mullvadvpn.feature.telblocker.impl.navigation.telBlockerEntry
 import net.mullvad.mullvadvpn.feature.vpnsettings.impl.navigation.vpnSettingsEntry
 import net.mullvad.mullvadvpn.lib.common.compose.LocalSharedTransitionScope
 import net.mullvad.mullvadvpn.lib.common.compose.accessibilityDataSensitive
@@ -148,6 +149,7 @@ fun MullvadApp() {
         settingsEntry(nav3)
         splashEntry(nav3)
         splitTunnelingEntry(nav3)
+        telBlockerEntry(nav3)
         vpnSettingsEntry(nav3)
         dnsSettingsEntry(nav3)
     }

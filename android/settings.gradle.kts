@@ -85,6 +85,8 @@ include(
     ":lib:feature:settings:api",
     ":lib:feature:splittunneling:impl",
     ":lib:feature:splittunneling:api",
+    ":lib:feature:telblocker:impl",
+    ":lib:feature:telblocker:api",
     ":lib:feature:vpnsettings:impl",
     ":lib:feature:vpnsettings:api",
     ":lib:map",

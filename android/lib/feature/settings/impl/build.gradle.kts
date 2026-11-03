@@ -20,6 +20,7 @@ dependencies {
     implementation(projects.lib.feature.problemreport.api)
     implementation(projects.lib.feature.settings.api)
     implementation(projects.lib.feature.splittunneling.api)
+    implementation(projects.lib.feature.telblocker.api)
     implementation(projects.lib.feature.vpnsettings.api)
     implementation(projects.lib.repository)
     implementation(projects.lib.usecase)

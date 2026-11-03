@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="telblocker_title" translatable="false">TelBlocker</string>
+    <string name="telblocker_description" translatable="false">Cut apps off from the network. A blocked app can\'t send or receive anything through the tunnel. Changes apply to new connections right away and to open ones within 10 seconds.</string>
+    <string name="telblocker_google_services" translatable="false">Cut off Google services</string>
+    <string name="telblocker_google_services_details" translatable="false">Google Play Services, Google Services Framework and Play Store.</string>
+    <string name="telblocker_google_confirm_title" translatable="false">Cut off Google services?</string>
+    <string name="telblocker_google_confirm_message" translatable="false">Google Play Services, Google Services Framework and the Play Store will have no network access.\n\nPush notifications in many apps, Play Store downloads and updates, Sign in with Google, Google Pay/Wallet, backup, Find My Device and fast location will stop working.</string>
+    <string name="telblocker_google_confirm_ok" translatable="false">Cut off</string>
+    <string name="telblocker_cancel" translatable="false">Cancel</string>
+    <string name="telblocker_show_system_apps" translatable="false">Show system apps</string>
+    <string name="telblocker_blocked_apps" translatable="false">Blocked apps</string>
+    <string name="telblocker_all_apps" translatable="false">All apps</string>
+    <string name="telblocker_loading" translatable="false">Loading apps…</string>
+</resources>

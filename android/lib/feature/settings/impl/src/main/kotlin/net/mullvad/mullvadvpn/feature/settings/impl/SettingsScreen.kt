@@ -34,6 +34,7 @@ import net.mullvad.mullvadvpn.feature.notification.api.NotificationSettingsNavKe
 import net.mullvad.mullvadvpn.feature.problemreport.api.ProblemReportNavKey
 import net.mullvad.mullvadvpn.feature.settings.api.SettingsNavKey
 import net.mullvad.mullvadvpn.feature.splittunneling.api.SplitTunnelingNavKey
+import net.mullvad.mullvadvpn.feature.telblocker.api.TelBlockerNavKey
 import net.mullvad.mullvadvpn.feature.vpnsettings.api.VpnSettingsNavKey
 import net.mullvad.mullvadvpn.lib.common.Lc
 import net.mullvad.mullvadvpn.lib.common.compose.assureHasDetailPane
@@ -121,6 +122,8 @@ fun Settings(navigator: Navigator) {
             dropUnlessResumed { navigator.navigateReplaceIfDetailPane(NotificationSettingsNavKey) },
         onAppObfuscationClick =
             dropUnlessResumed { navigator.navigateReplaceIfDetailPane(AppearanceNavKey) },
+        onTelBlockerClick =
+            dropUnlessResumed { navigator.navigateReplaceIfDetailPane(TelBlockerNavKey) },
         onBackClick = dropUnlessResumed { navigator.goBackUntil(SettingsNavKey, inclusive = true) },
     )
 }
@@ -138,6 +141,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onNotificationSettingsCellClick: () -> Unit,
     onAppObfuscationClick: () -> Unit = {},
+    onTelBlockerClick: () -> Unit = {},
 ) {
     ScaffoldWithSmallTopBar(
         appBarTitle = stringResource(id = R.string.settings),
@@ -171,6 +175,7 @@ fun SettingsScreen(
                         onDaitaClick = onDaitaClick,
                         onNotificationSettingsCellClick = onNotificationSettingsCellClick,
                         onAppObfuscationClick = onAppObfuscationClick,
+                        onTelBlockerClick = onTelBlockerClick,
                     )
                 }
             }
@@ -190,6 +195,7 @@ private fun LazyListScope.content(
     onDaitaClick: () -> Unit,
     onNotificationSettingsCellClick: () -> Unit,
     onAppObfuscationClick: () -> Unit = {},
+    onTelBlockerClick: () -> Unit = {},
 ) {
     if (state.isLoggedIn) {
         itemWithDivider {
@@ -213,6 +219,9 @@ private fun LazyListScope.content(
         item { SplitTunneling(onSplitTunnelingCellClick) }
         item { Spacer(modifier = Modifier.height(Dimens.cellVerticalSpacing)) }
     }
+
+    item { NavigationListItem(title = "TelBlocker", onClick = onTelBlockerClick) }
+    item { Spacer(modifier = Modifier.height(Dimens.cellVerticalSpacing)) }
 
     item {
         NavigationListItem(

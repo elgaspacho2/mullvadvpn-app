@@ -32,6 +32,7 @@ import net.mullvad.talpid.model.CreateTunResult.OtherAlwaysOnApp
 import net.mullvad.talpid.model.CreateTunResult.OtherLegacyAlwaysOnVpn
 import net.mullvad.talpid.model.InetNetwork
 import net.mullvad.talpid.model.TunConfig
+import net.mullvad.talpid.telblocker.TelBlockerRules
 import net.mullvad.talpid.util.TalpidSdkUtils.setMeteredIfSupported
 import net.mullvad.talpid.util.UnderlyingConnectivityStatusResolver
 
@@ -55,20 +56,29 @@ open class TalpidVpnService : LifecycleVpnService() {
     // Used by JNI
     lateinit var connectivityListener: ConnectivityListener
 
+    private lateinit var connectivityManager: ConnectivityManager
+
     @CallSuper
     override fun onCreate() {
         super.onCreate()
+        @Suppress("UnsafeCallOnNullableType")
+        connectivityManager = getSystemService<ConnectivityManager>()!!
         connectivityListener =
             ConnectivityListener(
-                @Suppress("UnsafeCallOnNullableType") getSystemService<ConnectivityManager>()!!,
+                connectivityManager,
                 UnderlyingConnectivityStatusResolver(::protect),
             )
+        TelBlockerRules.init(this)
         connectivityListener.register(lifecycleScope)
     }
 
     // Used by JNI
     fun openTun(config: TunConfig): CreateTunResult =
-        synchronized(this) { createTun(config).merge().also { activeTunStatus = it } }
+        synchronized(this) {
+            // App UIDs can change on reinstall; refresh them with each tunnel.
+            TelBlockerRules.load()
+            createTun(config).merge().also { activeTunStatus = it }
+        }
 
     // Used by JNI
     @Suppress("Unused")
@@ -80,6 +90,24 @@ open class TalpidVpnService : LifecycleVpnService() {
 
     // Used by JNI
     @Suppress("Unused") fun bypass(socket: Int): Boolean = protect(socket)
+
+    // Used by JNI: TelBlocker's per-app filter asks this for each new connection.
+    @Suppress("Unused", "LongParameterList")
+    fun isConnectionAllowed(
+        protocol: Int,
+        sourceIp: ByteArray,
+        sourcePort: Int,
+        destinationIp: ByteArray,
+        destinationPort: Int,
+    ): Boolean =
+        TelBlockerRules.isConnectionAllowed(
+            connectivityManager,
+            protocol,
+            sourceIp,
+            sourcePort,
+            destinationIp,
+            destinationPort,
+        )
 
     private fun createTun(
         config: TunConfig
