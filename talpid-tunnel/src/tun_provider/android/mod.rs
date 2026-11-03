@@ -10,7 +10,7 @@ use jnix::{
 };
 use std::net::Ipv4Addr;
 use std::{
-    net::IpAddr,
+    net::{IpAddr, SocketAddr},
     os::{
         fd::{AsFd, BorrowedFd},
         unix::io::{AsRawFd, RawFd},
@@ -424,6 +424,99 @@ impl VpnServiceTun {
             return Err(Error::Bypass);
         }
         Ok(())
+    }
+}
+
+impl VpnServiceTun {
+    /// TelBlocker: a handle that asks the VPN service whether connections may enter the tunnel.
+    pub fn connection_checker(&self) -> Result<ConnectionChecker, Error> {
+        // Same JavaVM handle cloning as in `AndroidTunProvider::open_tun`.
+        #[expect(clippy::undocumented_unsafe_blocks)]
+        let jvm = unsafe { JavaVM::from_raw(self.jvm.get_java_vm_pointer()) }
+            .map_err(Error::CloneJavaVm)?;
+        Ok(ConnectionChecker {
+            jvm,
+            class: self.class.clone(),
+            object: self.object.clone(),
+        })
+    }
+}
+
+/// TelBlocker: asks `TalpidVpnService.isConnectionAllowed` whether a connection may enter the
+/// tunnel, which depends on the app that owns it.
+pub struct ConnectionChecker {
+    jvm: JavaVM,
+    class: GlobalRef,
+    object: GlobalRef,
+}
+
+impl ConnectionChecker {
+    const METHOD: &'static str = "isConnectionAllowed";
+
+    /// `protocol` is the IP protocol number (6 for TCP, 17 for UDP).
+    pub fn is_allowed(
+        &self,
+        protocol: u8,
+        source: SocketAddr,
+        destination: SocketAddr,
+    ) -> Result<bool, Error> {
+        let env = JnixEnv::from(
+            self.jvm
+                .attach_current_thread_as_daemon()
+                .map_err(Error::AttachJvmToThread)?,
+        );
+        let method = env
+            .get_method_id(&self.class, Self::METHOD, "(I[BI[BI)Z")
+            .map_err(|cause| Error::FindMethod(Self::METHOD, cause))?;
+
+        let source_ip = env
+            .byte_array_from_slice(&ip_bytes(source.ip()))
+            .map_err(|cause| Error::CallMethod(Self::METHOD, cause))?;
+        let destination_ip = match env.byte_array_from_slice(&ip_bytes(destination.ip())) {
+            Ok(array) => array,
+            Err(cause) => {
+                let _ = env.delete_local_ref(source_ip.into());
+                return Err(Error::CallMethod(Self::METHOD, cause));
+            }
+        };
+
+        let result = env.call_method_unchecked(
+            self.object.as_obj(),
+            method,
+            JavaType::Primitive(Primitive::Boolean),
+            &[
+                JValue::Int(i32::from(protocol)),
+                JValue::Object(source_ip.into()),
+                JValue::Int(i32::from(source.port())),
+                JValue::Object(destination_ip.into()),
+                JValue::Int(i32::from(destination.port())),
+            ],
+        );
+
+        // This thread stays attached for the tunnel's lifetime and never returns to Java, so
+        // local references are only freed by hand.
+        let _ = env.delete_local_ref(source_ip.into());
+        let _ = env.delete_local_ref(destination_ip.into());
+
+        match result {
+            Ok(JValue::Bool(allowed)) => Ok(allowed != 0),
+            Ok(value) => Err(Error::InvalidMethodResult(
+                Self::METHOD,
+                format!("{value:?}"),
+            )),
+            Err(cause) => {
+                // Don't leave a pending Java exception on this thread.
+                let _ = env.exception_clear();
+                Err(Error::CallMethod(Self::METHOD, cause))
+            }
+        }
+    }
+}
+
+fn ip_bytes(ip: IpAddr) -> Vec<u8> {
+    match ip {
+        IpAddr::V4(ip) => ip.octets().to_vec(),
+        IpAddr::V6(ip) => ip.octets().to_vec(),
     }
 }
 

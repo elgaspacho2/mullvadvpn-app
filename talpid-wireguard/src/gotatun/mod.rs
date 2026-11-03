@@ -36,16 +36,21 @@ use gotatun::tun::{
     pcap::{PcapSniffer, PcapStream},
 };
 
+mod app_filter;
 mod conversions;
 mod obfuscation;
 mod source_filter;
 
+use app_filter::AppFilter;
+#[cfg(target_os = "android")]
+use app_filter::{Connection, ConnectionPolicy, set_policy};
 use conversions::to_gotatun_peer;
 pub use obfuscation::{TransportFactory, lwo_timer_params, lwo_version, transport_factory};
 use source_filter::SourceFilter;
 
-/// Everything read from the TUN device passes the source filter before it enters the tunnel.
-type TunRx = SourceFilter<GotaTunDevice>;
+/// Everything read from the TUN device passes the source filter, then TelBlocker's per-app
+/// filter, before it enters the tunnel.
+type TunRx = AppFilter<SourceFilter<GotaTunDevice>>;
 
 type SinglehopDevice = Device<(TransportFactory, GotaTunDevice, TunRx)>;
 type ExitDevice = Device<(UdpChannelFactory, GotaTunDevice, TunRx)>;
@@ -214,6 +219,12 @@ pub fn open_tun(
     {
         let (tun, fd) = get_tunnel_for_userspace(tun_provider, config)?;
 
+        // TelBlocker: let the VPN service decide which apps' connections enter the tunnel.
+        match tun.connection_checker() {
+            Ok(checker) => set_policy(Arc::new(AndroidConnectionPolicy(checker))),
+            Err(error) => log::error!("TelBlocker: per-app filter unavailable: {error}"),
+        }
+
         let mut tun_config = tun::Configuration::default();
         tun_config.raw_fd(fd);
 
@@ -232,6 +243,23 @@ pub fn open_tun(
             interface_name,
             is_new: tun.is_new,
         })
+    }
+}
+
+/// TelBlocker: [`ConnectionPolicy`] answered by the Android VPN service.
+#[cfg(target_os = "android")]
+struct AndroidConnectionPolicy(tun_provider::ConnectionChecker);
+
+#[cfg(target_os = "android")]
+impl ConnectionPolicy for AndroidConnectionPolicy {
+    fn is_allowed(&self, connection: &Connection) -> Result<bool, String> {
+        self.0
+            .is_allowed(
+                connection.protocol,
+                connection.source,
+                connection.destination,
+            )
+            .map_err(|error| error.to_string())
     }
 }
 
@@ -425,7 +453,7 @@ async fn create_devices(
                 entry_mtu,
             );
 
-            let tun_rx = SourceFilter::new(tun_dev.clone(), source_v4, source_v6);
+            let tun_rx = AppFilter::new(SourceFilter::new(tun_dev.clone(), source_v4, source_v6));
             let exit_device = DeviceBuilder::new()
                 .with_udp(udp_channels)
                 .with_ip_pair(tun_dev, tun_rx)
@@ -452,7 +480,7 @@ async fn create_devices(
         } else {
             // Singlehop setup
 
-            let tun_rx = SourceFilter::new(tun_dev.clone(), source_v4, source_v6);
+            let tun_rx = AppFilter::new(SourceFilter::new(tun_dev.clone(), source_v4, source_v6));
             let device = DeviceBuilder::new()
                 .with_udp(factory)
                 .with_ip_pair(tun_dev, tun_rx)

@@ -9,7 +9,7 @@ cfg_if! {
         #[path = "android/mod.rs"]
         mod imp;
         use self::imp::{AndroidTunProvider, VpnServiceTun};
-        pub use self::imp::Error;
+        pub use self::imp::{ConnectionChecker, Error};
 
         pub type Tun = VpnServiceTun;
         pub type TunProvider = AndroidTunProvider;
